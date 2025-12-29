@@ -1,26 +1,10 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { 
-  Menu, 
-  Play, 
-  UploadCloud, 
-  Activity, 
-  FileText, 
-  FileSpreadsheet, 
-  PenTool,
-  Clock,
-  TrendingUp,
-  AlertCircle,
-  BrainCircuit,
-  Settings,
-  MoreHorizontal,
-  CheckCircle2,
-  CircleDashed,
-  Search,
-  Plus,
-  ArrowUpRight,
-  ArrowDownRight,
-  LogOut,
-  User
+  Menu, Play, UploadCloud, Activity, FileText, FileSpreadsheet, PenTool,
+  Clock, TrendingUp, AlertCircle, BrainCircuit, Settings, MoreHorizontal,
+  CheckCircle2, CircleDashed, Search, Plus, ArrowUpRight, ArrowDownRight,
+  LogOut, User, Bell, HelpCircle, Trash2, Lightbulb
 } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { Terminal } from './components/Terminal';
@@ -28,124 +12,260 @@ import { Card } from './components/Card';
 import { Button } from './components/Button';
 import { Badge } from './components/Badge';
 import { LandingPage } from './components/LandingPage';
-import { LogEntry, MOCK_KNOWLEDGE_BASE, ViewState, Verdict } from './types';
+import { TutorialOverlay } from './components/TutorialOverlay';
+import { LogEntry, ViewState, Verdict, TutorialStep, Project, Document } from './types';
 
-export default function App() {
-  // Auth State
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+// Firebase & Agents
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { db } from './lib/firebase';
+import { collection, addDoc, query, where, orderBy, onSnapshot, limit, serverTimestamp } from 'firebase/firestore';
+import { runBidSwarm } from './lib/agents';
 
-  // App State
+// Internal component to handle auth-dependent logic
+const AppContent = () => {
+  const { user, logout, isDemo } = useAuth();
   const [view, setView] = useState<ViewState>('dashboard');
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   
-  // Simulation State
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  // Real Data State
+  const [activeProject, setActiveProject] = useState<Project | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [verdict, setVerdict] = useState<Verdict>('pending');
-  const [draftContent, setDraftContent] = useState("");
+  
+  // Input State
+  const [inputRfpText, setInputRfpText] = useState("");
+  const [inputStrategy, setInputStrategy] = useState("");
+  
+  // Knowledge Base State - Empty by default now
+  const [documents, setDocuments] = useState<Document[]>([]);
 
-  const addLog = (agent: string, message: string, type: LogEntry['type'] = 'info') => {
-    setLogs(prev => [...prev, {
-      id: Date.now() + Math.random(),
-      agent,
-      message,
-      timestamp: new Date().toLocaleTimeString('en-US', { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" }),
-      type
-    }]);
+  // Check for first-time user tutorial
+  useEffect(() => {
+    const hasSeenTutorial = localStorage.getItem('bidpilot_tutorial_seen');
+    if (!hasSeenTutorial) {
+      setTimeout(() => setShowTutorial(true), 1000);
+    }
+  }, []);
+
+  const handleCloseTutorial = () => {
+    setShowTutorial(false);
+    localStorage.setItem('bidpilot_tutorial_seen', 'true');
   };
 
-  const startFullSimulation = () => {
-    setIsAnalyzing(true);
-    setLogs([]);
-    setVerdict('pending');
-    setDraftContent("");
-    setView('analysis');
-
-    const steps = [
-      { delay: 800, agent: 'System', msg: 'Initializing Autonomous Swarm Protocol v2.0...', type: 'info' },
-      { delay: 1500, agent: 'The Shredder', msg: 'Ingesting "Gov_RFP_Transport_2025.pdf" (45MB)...', type: 'info' },
-      { delay: 2800, agent: 'The Shredder', msg: 'Parsing Complete: 120 pages processed. Extracted 4 Tables. OCR Confidence: 99.2%.', type: 'success' },
-      { delay: 4000, agent: 'The Historian', msg: 'Querying Knowledge Graph for semantic matches...', type: 'info' },
-      { delay: 5200, agent: 'The Historian', msg: 'Context Retrieval: Found 12 matching past proposals for "Transportation Logistics" > 85% similarity.', type: 'success' },
-      { delay: 6500, agent: 'The Gatekeeper', msg: 'Analyzing RFP Constraints against Company Policy...', type: 'info' },
-      { delay: 7500, agent: 'The Gatekeeper', msg: 'Constraint Check: Budget > $500k (PASS). Tech Stack: Python/Cloud (PASS). Location: Remote (PASS).', type: 'success' },
-      { delay: 8200, agent: 'The Gatekeeper', msg: 'VERDICT: GREEN LIGHT. Initiating Drafting Sequence.', type: 'success' },
-      { delay: 9500, agent: 'The Quant', msg: 'Detected "Security_Questionnaire.xlsx" in attachment list.', type: 'warning' },
-      { delay: 10500, agent: 'The Quant', msg: 'Executing python script: map_iso27001_answers(file="Security.xlsx")', type: 'code' },
-      { delay: 12000, agent: 'The Quant', msg: 'Automation Complete: Filled 45/50 rows automatically. 5 flagged for review.', type: 'success' },
-      { delay: 13500, agent: 'The Architect', msg: 'Synthesizing Executive Summary using tone source "BankOfAmerica_2024"...', type: 'info' },
-      { delay: 15000, agent: 'The Architect', msg: 'Generating Section 4.2: Technical Approach (Cloud Migration Strategy)...', type: 'info' },
-      { delay: 16500, agent: 'The Auditor', msg: 'Running Final Compliance Audit...', type: 'info' },
-      { delay: 17500, agent: 'The Auditor', msg: 'Validation Passed: Font (Times New Roman), Margins (1.0"), Prohibited Terms (0).', type: 'success' },
-      { delay: 18500, agent: 'System', msg: 'Proposal Package Generated. Ready for Human Review.', type: 'success' },
-    ];
-
-    let totalDelay = 0;
-    steps.forEach(step => {
-      totalDelay += step.delay;
-      setTimeout(() => {
-        addLog(step.agent, step.msg, step.type as LogEntry['type']);
-        if (step.agent === 'The Gatekeeper' && step.msg.includes('GREEN LIGHT')) {
-            setVerdict('go');
+  // Listen to User's Projects (Firestore) - Only if NOT demo
+  useEffect(() => {
+    if (!user || isDemo) return;
+    
+    const q = query(
+        collection(db, 'projects'), 
+        where('userId', '==', user.uid),
+        orderBy('createdAt', 'desc'),
+        limit(10)
+    );
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const fetchedProjects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
+        setProjects(fetchedProjects);
+        
+        // Update active project if it exists in the stream
+        if (activeProject) {
+            const updated = fetchedProjects.find(p => p.id === activeProject.id);
+            if (updated) {
+                setActiveProject(updated);
+                // Only overwrite logs from Firestore if we aren't currently streaming them locally
+                // This prevents jitter during the active "Thinking" phase
+                if (updated.status !== 'analyzing') {
+                   setLogs(updated.logs || []);
+                }
+            }
         }
-        if (step.agent === 'The Architect' && step.msg.includes('Synthesizing Executive')) {
-            setDraftContent(`EXECUTIVE SUMMARY
-
-BidPilot Solutions is pleased to submit this proposal for the Transport Logistics System. Leveraging our 10 years of experience with cloud-native architectures (demonstrated in our Bank of America success story), we propose a scalable, Python-based solution designed to modernize your fleet management operations.
-
-Our approach prioritizes three key pillars:
-1. Autonomous Efficiency: Reducing operational overhead by 40%.
-2. Security First: ISO 27001 compliant infrastructure.
-3. Rapid Deployment: Phased rollout completing within 6 months.
-
-TECHNICAL APPROACH (Section 4.2)
-
-We will deploy a microservices architecture on AWS, utilizing Kubernetes for orchestration. This ensures high availability and seamless scaling during peak logistics windows. Our proprietary "RouteOptimizer" engine will be integrated via RESTful APIs...`);
-        }
-      }, step.delay); 
     });
+    return unsubscribe;
+  }, [user, activeProject, isDemo]);
 
-    setTimeout(() => {
-      setIsAnalyzing(false);
-    }, 19000);
+  const handleRunRealBid = async () => {
+    if (!user) return;
+    
+    // Default text for lazy testing if empty
+    const textToProcess = inputRfpText.trim() || `RFP for Enterprise Logistics System. 
+    Client: Global Freight Corp. 
+    Budget: $150,000. 
+    Timeline: 6 months. 
+    Requirements: Must use Python, Cloud-Native architecture. No on-premise solutions. 
+    Security: ISO 27001 required.`;
+
+    const strategyToProcess = inputStrategy.trim();
+
+    setView('analysis');
+    setLogs([]); // Clear previous logs
+    
+    // Create a local temporary project object for immediate UI feedback
+    const tempId = `temp-${Date.now()}`;
+    const newProject: Project = {
+        id: tempId,
+        userId: user.uid,
+        title: `RFP Analysis - ${new Date().toLocaleTimeString()}`,
+        status: 'analyzing',
+        verdict: 'pending',
+        rfpText: textToProcess,
+        strategyContext: strategyToProcess,
+        logs: [],
+        draftContent: '',
+        createdAt: new Date()
+    };
+    
+    setActiveProject(newProject);
+    setProjects(prev => [newProject, ...prev]);
+
+    // Define callbacks to update local state immediately (bypassing Firestore latency/permission issues)
+    const onLog = (log: LogEntry) => {
+        setLogs(prev => [...prev, log]);
+        // Also update the active project object in state
+        setActiveProject(prev => prev ? { ...prev, logs: [...(prev.logs || []), log] } : null);
+    };
+
+    const onUpdateProject = (data: Partial<Project>) => {
+        setActiveProject(prev => prev ? { ...prev, ...data } : null);
+        setProjects(prev => prev.map(p => p.id === tempId ? { ...p, ...data } : p));
+    };
+
+    try {
+        let firestoreId = tempId;
+        
+        // If NOT demo, try to actually create in Firestore
+        if (!isDemo) {
+            try {
+                const docRef = await addDoc(collection(db, 'projects'), {
+                    ...newProject,
+                    createdAt: serverTimestamp()
+                });
+                firestoreId = docRef.id;
+                // Update local ID to match Firestore ID
+                setActiveProject(prev => prev ? { ...prev, id: firestoreId } : null);
+            } catch (e) {
+                console.warn("Firestore creation failed, continuing in local mode.");
+            }
+        }
+
+        // Run the agents (passing isDemo flag, callbacks, AND Strategy)
+        runBidSwarm(firestoreId, textToProcess, strategyToProcess, isDemo, onLog, onUpdateProject);
+
+    } catch (e) {
+        console.error("Failed to start bid", e);
+    }
   };
 
-  const PROPOSAL_OUTLINE = [
-    { id: 1, section: 'Cover Page', type: 'Cover', status: 'In Process', target: 50, limit: 100, reviewer: 'The Architect' },
-    { id: 2, section: 'Executive Summary', type: 'Narrative', status: 'Done', target: 1200, limit: 1500, reviewer: 'The Gatekeeper' },
-    { id: 3, section: 'Technical Approach', type: 'Narrative', status: 'Done', target: 3500, limit: 5000, reviewer: 'The Auditor' },
-    { id: 4, section: 'Security Compliance', type: 'Table', status: 'In Process', target: 800, limit: 1000, reviewer: 'The Quant' },
-    { id: 5, section: 'Pricing Model', type: 'Financial', status: 'Pending', target: 0, limit: 500, reviewer: 'The Quant' },
-    { id: 6, section: 'Case Studies', type: 'Narrative', status: 'Pending', target: 2000, limit: 2500, reviewer: 'The Historian' },
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (files && files.length > 0) {
+          const file = files[0];
+          const newDoc: Document = {
+              id: Date.now().toString(),
+              name: file.name,
+              size: `${(file.size / 1024 / 1024).toFixed(1)} MB`,
+              date: new Date().toLocaleDateString(),
+              tags: ['New Ingestion', 'Processing'],
+              userId: user?.uid
+          };
+          setDocuments(prev => [newDoc, ...prev]);
+          alert(`Success: ${file.name} ingested. The Historian will reference this in the next bid.`);
+      }
+  };
+
+  const TUTORIAL_STEPS: TutorialStep[] = [
+    { target: 'body', title: 'Welcome to BidPilot', content: 'This guided tour will show you how to automate your RFP response process.', position: 'center' },
+    { target: '[data-tour="metrics-row"]', title: 'Mission Control', content: 'Monitor your win probabilities and active drafts.', position: 'bottom' },
+    { target: '[data-tour="run-bid-area"]', title: 'Start Automation', content: 'Paste RFP text here and click "Run Agent Swarm".', position: 'bottom' }
   ];
 
   const renderDashboard = () => (
     <div key="dashboard" className="p-4 md:p-8 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700 pb-20 space-y-8">
-      {/* Header */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
             <h1 className="text-3xl font-bold text-zinc-100 tracking-tight">Mission Control</h1>
             <p className="text-zinc-500 mt-2 text-lg">Real-time oversight of autonomous proposal operations.</p>
         </div>
-        <div className="flex items-center gap-3">
-           <Button variant="secondary" icon={UploadCloud}>Import RFP</Button>
-           <Button onClick={startFullSimulation} icon={Play} className="w-full md:w-auto py-3 text-base">Run New Bid</Button>
-        </div>
       </header>
 
-      {/* Metrics Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      {/* Input Area */}
+      <Card className="p-6 border-indigo-900/50 bg-indigo-950/10" >
+         <div className="flex flex-col gap-6" data-tour="run-bid-area">
+            <div>
+                <h3 className="font-semibold text-indigo-100 flex items-center gap-2 mb-3">
+                    <BrainCircuit size={18} />
+                    New Autonomous Bid
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {/* Column 1: RFP Text */}
+                    <div className="space-y-2">
+                        <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">RFP Content</label>
+                        <textarea 
+                            className="w-full bg-zinc-950/50 border border-zinc-700 rounded-lg p-3 text-sm text-zinc-300 min-h-[160px] focus:ring-1 focus:ring-indigo-500 outline-none font-mono resize-none"
+                            placeholder="Paste raw RFP text here... (e.g., 'Client needs a cloud migration proposal, budget $100k...')"
+                            value={inputRfpText}
+                            onChange={(e) => setInputRfpText(e.target.value)}
+                        />
+                    </div>
+                    
+                    {/* Column 2: Strategy */}
+                    <div className="space-y-2">
+                        <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider flex items-center gap-2">
+                            <Lightbulb size={12} className="text-amber-400" />
+                            Bid Strategy & Win Themes
+                        </label>
+                        <textarea 
+                            className="w-full bg-zinc-950/50 border border-zinc-700 rounded-lg p-3 text-sm text-zinc-300 min-h-[160px] focus:ring-1 focus:ring-amber-500/50 outline-none font-sans resize-none"
+                            placeholder="Tell the AI what to prioritize...&#10;• Focus on our low implementation cost&#10;• Highlight our ISO-27001 security&#10;• Watch out for: 'On-premise' requirements (Red Flag)"
+                            value={inputStrategy}
+                            onChange={(e) => setInputStrategy(e.target.value)}
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex justify-between items-center pt-2 border-t border-indigo-900/30">
+                <span className="text-xs text-zinc-500">
+                    {isDemo ? "Running in Simulation Mode (No Database Write)" : "Connected to Live Database"}
+                </span>
+                <Button onClick={handleRunRealBid} icon={Play} className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-500 text-white shadow-[0_0_20px_rgba(79,70,229,0.4)] border-0">
+                    Run Agent Swarm
+                </Button>
+            </div>
+         </div>
+      </Card>
+
+      {/* Dynamic Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4" data-tour="metrics-row">
         {[
-          { label: "Active Pipeline Value", value: "$1.2M", trend: "+12.5%", trendUp: true, sub: "Trending up this month" },
-          { label: "Win Probability", value: "78%", trend: "+5%", trendUp: true, sub: "Above industry average" },
-          { label: "Active Drafts", value: "3", trend: "-1", trendUp: false, sub: "Processing normally" },
-          { label: "Avg. Response Time", value: "1.2d", trend: "-20%", trendUp: true, sub: "Efficiency increasing" },
+          { label: "Total Projects", value: projects.length.toString(), trend: "+1", trendUp: true, sub: "In database" },
+          { 
+            label: "Win Probability", 
+            value: projects.length > 0 ? "78%" : "0%", 
+            trend: "+5%", 
+            trendUp: true, 
+            sub: "Based on AI analysis" 
+          },
+          { 
+              label: "Completed Drafts", 
+              value: projects.filter(p => p.status === 'completed').length.toString(), 
+              trend: "100%", 
+              trendUp: true, 
+              sub: "Ready for review" 
+          },
+          { 
+              label: "No-Go Decisions", 
+              value: projects.filter(p => p.verdict === 'no-go').length.toString(), 
+              trend: "Safe", 
+              trendUp: false, 
+              sub: "Risk averted" 
+          },
         ].map((stat, i) => (
-          <Card key={i} className="p-6 bg-zinc-900/40 border-zinc-800 hover:border-zinc-700 transition-colors">
+          <Card key={i} className="p-6 bg-zinc-900/40 border-zinc-800">
              <div className="flex justify-between items-start mb-4">
                 <span className="text-zinc-400 font-medium text-sm">{stat.label}</span>
-                <span className={`flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${stat.trendUp ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
-                   {stat.trend} {stat.trendUp ? <ArrowUpRight size={12} className="ml-1"/> : <ArrowDownRight size={12} className="ml-1"/>}
+                <span className={`flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${stat.trendUp ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-800 text-zinc-400'}`}>
+                   {stat.trend} {stat.trendUp && <ArrowUpRight size={12} className="ml-1"/>}
                 </span>
              </div>
              <div className="text-3xl font-bold text-zinc-100 mb-1">{stat.value}</div>
@@ -154,340 +274,253 @@ We will deploy a microservices architecture on AWS, utilizing Kubernetes for orc
         ))}
       </div>
 
-      {/* Chart Section */}
-      <Card className="p-6 bg-zinc-900/40 border-zinc-800">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h3 className="text-lg font-semibold text-zinc-100">Bid Activity Volume</h3>
-            <p className="text-zinc-500 text-sm">Processing load over last 30 days</p>
-          </div>
-          <div className="flex gap-2">
-             <Button variant="ghost" className="text-xs h-8 bg-zinc-800/50 text-zinc-300">Last 30 days</Button>
-             <Button variant="ghost" className="text-xs h-8 text-zinc-500">Last 7 days</Button>
-          </div>
-        </div>
-        <div className="h-64 w-full relative">
-           {/* Decorative Chart SVG */}
-           <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 1000 300">
-              <defs>
-                 <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#818cf8" stopOpacity="0.2"/>
-                    <stop offset="100%" stopColor="#818cf8" stopOpacity="0"/>
-                 </linearGradient>
-              </defs>
-              <path d="M0,250 C100,200 200,300 300,150 C400,0 500,200 600,180 C700,160 800,250 900,100 L1000,250 L1000,300 L0,300 Z" fill="url(#chartGradient)" />
-              <path d="M0,250 C100,200 200,300 300,150 C400,0 500,200 600,180 C700,160 800,250 900,100 L1000,250" fill="none" stroke="#818cf8" strokeWidth="3" vectorEffect="non-scaling-stroke" />
-              
-              {/* Secondary Line */}
-              <path d="M0,280 C150,260 250,280 400,200 C550,120 650,220 750,200 C850,180 900,220 1000,180" fill="none" stroke="#4f46e5" strokeWidth="2" strokeDasharray="5,5" strokeOpacity="0.5" vectorEffect="non-scaling-stroke" />
-           </svg>
-           {/* Labels */}
-           <div className="absolute bottom-0 w-full flex justify-between text-[10px] text-zinc-600 px-2">
-              <span>Apr 7</span>
-              <span>Apr 14</span>
-              <span>Apr 21</span>
-              <span>Apr 28</span>
-              <span>May 5</span>
-              <span>May 12</span>
-              <span>May 19</span>
-           </div>
-        </div>
-      </Card>
-
-      {/* Bottom Section: Document Outline & Recent Activity */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        
-        {/* Proposal Outline Table */}
-        <div className="xl:col-span-2">
-          <Card className="h-full bg-zinc-900/40 border-zinc-800 overflow-hidden">
+      <div className="grid grid-cols-1 gap-8">
+        <Card className="h-full bg-zinc-900/40 border-zinc-800 overflow-hidden">
              <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/20">
-                <div className="flex items-center gap-4">
-                   <h3 className="font-semibold text-zinc-200">Active Proposal Outline</h3>
-                   <div className="flex gap-2">
-                      <Badge variant="outline" className="bg-zinc-800/50 text-zinc-300">Gov_RFP_Transport</Badge>
-                      <Badge variant="outline" className="bg-zinc-800/50 text-zinc-500">v2.4</Badge>
-                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                   <Button variant="ghost" className="h-7 w-7 p-0"><Search size={14}/></Button>
-                   <Button variant="ghost" className="h-7 w-7 p-0"><Plus size={14}/></Button>
-                </div>
+                <h3 className="font-semibold text-zinc-200">Recent Projects</h3>
              </div>
-             
              <div className="overflow-x-auto">
                <table className="w-full text-sm text-left">
                   <thead className="text-xs text-zinc-500 uppercase bg-zinc-900/50">
                      <tr>
-                        <th className="px-4 py-3 font-medium">Section</th>
-                        <th className="px-4 py-3 font-medium">Type</th>
+                        <th className="px-4 py-3 font-medium">Title</th>
                         <th className="px-4 py-3 font-medium">Status</th>
-                        <th className="px-4 py-3 font-medium text-right">Target Words</th>
-                        <th className="px-4 py-3 font-medium">Agent Owner</th>
-                        <th className="px-4 py-3 font-medium"></th>
+                        <th className="px-4 py-3 font-medium">Verdict</th>
+                        <th className="px-4 py-3 font-medium text-right">Action</th>
                      </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-800">
-                     {PROPOSAL_OUTLINE.map((row) => (
-                        <tr key={row.id} className="hover:bg-zinc-800/30 transition-colors group">
-                           <td className="px-4 py-3 font-medium text-zinc-200">{row.section}</td>
-                           <td className="px-4 py-3">
-                              <span className="px-2 py-1 rounded text-xs bg-zinc-800 text-zinc-400 border border-zinc-700">{row.type}</span>
-                           </td>
-                           <td className="px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                 {row.status === 'Done' && <CheckCircle2 size={14} className="text-emerald-500" />}
-                                 {row.status === 'In Process' && <CircleDashed size={14} className="text-amber-500 animate-spin-slow" />}
-                                 {row.status === 'Pending' && <div className="w-3.5 h-3.5 rounded-full border-2 border-zinc-700" />}
-                                 <span className={
-                                    row.status === 'Done' ? 'text-emerald-400' : 
-                                    row.status === 'In Process' ? 'text-amber-400' : 'text-zinc-500'
-                                 }>{row.status}</span>
-                              </div>
-                           </td>
-                           <td className="px-4 py-3 text-right font-mono text-zinc-400">{row.target}</td>
-                           <td className="px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                 <div className={`w-1.5 h-1.5 rounded-full ${
-                                    row.reviewer === 'The Architect' ? 'bg-violet-500' : 
-                                    row.reviewer === 'The Quant' ? 'bg-amber-500' :
-                                    'bg-cyan-500'
-                                 }`} />
-                                 <span className="text-zinc-400">{row.reviewer}</span>
-                              </div>
-                           </td>
-                           <td className="px-4 py-3 text-right">
-                              <Button variant="ghost" className="h-6 w-6 p-0 text-zinc-600 hover:text-zinc-300">
-                                 <MoreHorizontal size={14} />
-                              </Button>
-                           </td>
+                     {projects.length === 0 ? (
+                        <tr>
+                            <td colSpan={4} className="px-4 py-8 text-center text-zinc-500">
+                                No projects yet. Start a new bid above.
+                            </td>
                         </tr>
-                     ))}
+                     ) : (
+                         projects.map((proj) => (
+                            <tr key={proj.id} className="hover:bg-zinc-800/30 transition-colors">
+                               <td className="px-4 py-3 font-medium text-zinc-200">{proj.title}</td>
+                               <td className="px-4 py-3">
+                                  <Badge variant={proj.status === 'completed' ? 'success' : proj.status === 'failed' ? 'error' : 'default'}>
+                                    {proj.status}
+                                  </Badge>
+                               </td>
+                               <td className="px-4 py-3 capitalize text-zinc-400">
+                                   {proj.verdict === 'go' && <span className="text-emerald-400 font-bold">GO</span>}
+                                   {proj.verdict === 'no-go' && <span className="text-rose-400 font-bold">NO-GO</span>}
+                                   {proj.verdict === 'pending' && <span>--</span>}
+                               </td>
+                               <td className="px-4 py-3 text-right">
+                                  <Button variant="ghost" className="h-6 w-6 p-0" onClick={() => {
+                                      setActiveProject(proj);
+                                      // If it was completed, set logs from it so user can see history
+                                      if (proj.logs) setLogs(proj.logs);
+                                      setView('draft');
+                                  }}>
+                                     <MoreHorizontal size={14} />
+                                  </Button>
+                               </td>
+                            </tr>
+                         ))
+                     )}
                   </tbody>
                </table>
              </div>
-          </Card>
-        </div>
-
-        {/* Recent Activity Feed */}
-        <div className="xl:col-span-1">
-          <Card className="h-full bg-zinc-900/40 border-zinc-800">
-            <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/20">
-              <h3 className="font-semibold text-zinc-200 flex items-center gap-2">
-                  <Activity size={16} className="text-indigo-400" />
-                  Live Feed
-              </h3>
-              <Badge variant="outline" className="text-[10px] bg-emerald-500/5 text-emerald-400 border-emerald-500/20">Online</Badge>
-            </div>
-            <div className="divide-y divide-zinc-800/50">
-                {[
-                    { agent: "The Quant", action: "Filled Security Questionnaire", time: "2m ago", color: "bg-amber-500/10 text-amber-500" },
-                    { agent: "The Historian", action: "Ingested 4 case studies", time: "15m ago", color: "bg-cyan-500/10 text-cyan-500" },
-                    { agent: "The Gatekeeper", action: "Flagged budget discrepancy", time: "1h ago", color: "bg-rose-500/10 text-rose-500" },
-                    { agent: "The Architect", action: "Drafting: Exec Summary", time: "2h ago", color: "bg-violet-500/10 text-violet-500" },
-                    { agent: "The Architect", action: "Completed: Cover Letter", time: "3h ago", color: "bg-violet-500/10 text-violet-500" },
-                ].map((item, i) => (
-                    <div key={i} className="flex items-start gap-3 p-4 hover:bg-zinc-800/30 transition-colors">
-                        <div className={`mt-0.5 w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold ${item.color} shrink-0 ring-1 ring-inset ring-white/5`}>
-                          {item.agent.split(' ')[1].substring(0,1)}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <div className="flex justify-between items-start">
-                               <span className="font-medium text-zinc-300 text-xs">{item.agent}</span>
-                               <span className="text-zinc-600 text-[10px] whitespace-nowrap">{item.time}</span>
-                            </div>
-                            <p className="text-zinc-500 text-xs mt-0.5 truncate">{item.action}</p>
-                        </div>
-                    </div>
-                ))}
-            </div>
-            <div className="p-3 bg-zinc-900/30 text-center border-t border-zinc-800">
-               <button className="text-xs text-zinc-500 hover:text-indigo-400 transition-colors">View System Logs</button>
-            </div>
-          </Card>
-        </div>
+        </Card>
       </div>
     </div>
   );
 
   const renderKnowledge = () => (
-    <div key="knowledge" className="p-4 md:p-8 max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700">
-        <header className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="p-4 md:p-8 max-w-6xl mx-auto animate-in fade-in duration-500">
+        <header className="mb-8 flex justify-between items-center">
             <div>
-                <h1 className="text-2xl font-bold text-zinc-100">The Historian</h1>
-                <p className="text-zinc-500 mt-1">Autonomous Knowledge Graph. No manual tagging required.</p>
+                <h1 className="text-2xl font-bold text-zinc-100">Knowledge Base</h1>
+                <p className="text-zinc-500">The Historian's indexed memory.</p>
             </div>
-            <Button variant="secondary" icon={UploadCloud}>Ingest New Folder</Button>
+            <div className="relative">
+                <input 
+                    type="file" 
+                    id="file-upload" 
+                    className="hidden" 
+                    onChange={handleFileUpload}
+                    multiple 
+                />
+                <label htmlFor="file-upload">
+                    <div className="flex items-center justify-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md cursor-pointer transition-colors text-sm font-medium shadow-[0_0_15px_rgba(79,70,229,0.3)]">
+                        <UploadCloud size={16} className="mr-2" />
+                        Ingest Documents
+                    </div>
+                </label>
+            </div>
         </header>
 
-        <Card className="overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                  <thead className="bg-zinc-900/50 border-b border-zinc-800 text-zinc-400">
-                      <tr>
-                          <th className="px-6 py-4 font-medium">Document Name</th>
-                          <th className="px-6 py-4 font-medium">Size</th>
-                          <th className="px-6 py-4 font-medium">Ingested</th>
-                          <th className="px-6 py-4 font-medium">Auto-Tags</th>
-                          <th className="px-6 py-4 font-medium">Status</th>
-                      </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-800">
-                      {MOCK_KNOWLEDGE_BASE.map((doc) => (
-                          <tr key={doc.id} className="hover:bg-zinc-800/50 transition-colors group">
-                              <td className="px-6 py-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="bg-zinc-800 p-2 rounded text-zinc-300 group-hover:text-white transition-colors">
-                                    <FileText size={16} />
-                                  </div>
-                                  <span className="font-medium text-zinc-200 group-hover:text-white">{doc.name}</span>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 text-zinc-500 font-mono text-xs">{doc.size}</td>
-                              <td className="px-6 py-4 text-zinc-500">{doc.date}</td>
-                              <td className="px-6 py-4">
-                                  <div className="flex gap-2 flex-wrap">
-                                      {doc.tags.map(tag => (
-                                          <Badge key={tag} variant="outline" className="text-zinc-400 border-zinc-700">{tag}</Badge>
-                                      ))}
-                                  </div>
-                              </td>
-                              <td className="px-6 py-4">
-                                  <Badge variant="success" className="pl-1 pr-2">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
-                                    Indexed
-                                  </Badge>
-                              </td>
-                          </tr>
-                      ))}
-                  </tbody>
-              </table>
-            </div>
-        </Card>
-    </div>
-  );
-
-  const renderDraft = () => (
-    <div key="draft" className="flex flex-col h-full bg-zinc-950 animate-in fade-in duration-700">
-        <div className="border-b border-zinc-800 px-6 py-4 flex flex-col sm:flex-row items-center justify-between bg-zinc-900/50 backdrop-blur-md sticky top-0 z-10 gap-4">
-            <div className="flex items-center gap-4 w-full sm:w-auto">
-                <div className="bg-violet-500/10 p-2.5 rounded-lg text-violet-400 border border-violet-500/20 shadow-sm">
-                    <PenTool size={20} />
+        {documents.length === 0 ? (
+            <Card className="bg-zinc-900/40 border-zinc-800 p-12 border-dashed flex flex-col items-center justify-center text-center">
+                <div className="bg-zinc-800/50 p-6 rounded-full mb-6">
+                    <UploadCloud size={48} className="text-zinc-500" />
                 </div>
-                <div>
-                    <h2 className="font-bold text-zinc-100">Proposal Draft: Gov_RFP_Transport</h2>
-                    <p className="text-xs text-zinc-500 flex items-center gap-1 mt-0.5">
-                      Generated by <span className="font-semibold text-violet-400">The Architect</span> • Verified by <span className="font-semibold text-emerald-400">The Auditor</span>
-                    </p>
-                </div>
-            </div>
-            <div className="flex gap-3 w-full sm:w-auto">
-                <Button variant="secondary" icon={FileSpreadsheet} className="flex-1 sm:flex-none">View Excel</Button>
-                <Button variant="primary" className="flex-1 sm:flex-none">Export to Word</Button>
-            </div>
-        </div>
-        <div className="flex-1 overflow-auto bg-zinc-950 p-4 md:p-8 relative">
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900 via-zinc-950 to-zinc-950 pointer-events-none" />
-            
-            <div className="bg-white shadow-2xl shadow-black/50 min-h-[800px] max-w-4xl mx-auto p-8 md:p-16 rounded-sm relative z-10 transition-all duration-500">
-                {draftContent ? (
-                    <div className="prose prose-slate max-w-none whitespace-pre-wrap font-serif text-lg leading-relaxed text-zinc-800 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                        {draftContent}
-                    </div>
-                ) : (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-400 p-8 text-center bg-zinc-50/50">
-                        <div className="bg-zinc-100 p-6 rounded-full mb-4 animate-pulse">
-                          <Activity size={48} className="text-zinc-300" />
+                <h3 className="text-xl text-zinc-200 font-medium mb-2">Knowledge Base Empty</h3>
+                <p className="text-zinc-500 text-sm max-w-md mx-auto mb-6">
+                    Upload your past winning proposals, company profiles, or compliance certifications. 
+                    The Historian will index these to write better future bids.
+                </p>
+                <div className="relative">
+                    <input 
+                        type="file" 
+                        id="file-upload-2" 
+                        className="hidden" 
+                        onChange={handleFileUpload}
+                        multiple 
+                    />
+                    <label htmlFor="file-upload-2">
+                        <div className="inline-flex items-center justify-center px-6 py-3 bg-zinc-100 hover:bg-white text-zinc-900 rounded-md cursor-pointer transition-colors text-sm font-bold">
+                            Select Files to Upload
                         </div>
-                        <h3 className="text-zinc-900 font-medium mb-2">Workspace Empty</h3>
-                        <p className="max-w-md mx-auto mb-8 text-zinc-500">No active draft found. Run a simulation in Mission Control to generate content.</p>
-                        <Button variant="secondary" onClick={() => {
-                          setView('dashboard');
-                          setTimeout(() => startFullSimulation(), 100);
-                        }} className="bg-zinc-900 text-white hover:bg-zinc-800">
-                          Generate Draft
-                        </Button>
-                    </div>
-                )}
-            </div>
-        </div>
+                    </label>
+                </div>
+            </Card>
+        ) : (
+            <Card className="bg-zinc-900/40 border-zinc-800">
+                <table className="w-full text-left text-sm">
+                    <thead className="bg-zinc-900/80 border-b border-zinc-800">
+                        <tr>
+                            <th className="px-6 py-4 font-medium text-zinc-400">Document Name</th>
+                            <th className="px-6 py-4 font-medium text-zinc-400">Size</th>
+                            <th className="px-6 py-4 font-medium text-zinc-400">Ingested</th>
+                            <th className="px-6 py-4 font-medium text-zinc-400">Auto-Tags</th>
+                            <th className="px-6 py-4 font-medium text-zinc-400 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-800">
+                        {documents.map((doc) => (
+                            <tr key={doc.id} className="hover:bg-zinc-800/30">
+                                <td className="px-6 py-4 flex items-center gap-3">
+                                    <FileText size={16} className="text-indigo-400" />
+                                    <span className="font-medium text-zinc-200">{doc.name}</span>
+                                </td>
+                                <td className="px-6 py-4 text-zinc-500">{doc.size}</td>
+                                <td className="px-6 py-4 text-zinc-500">{doc.date}</td>
+                                <td className="px-6 py-4">
+                                    <div className="flex gap-2">
+                                        {doc.tags.map(tag => (
+                                            <Badge key={tag} variant="outline">{tag}</Badge>
+                                        ))}
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                    <button 
+                                        onClick={() => setDocuments(docs => docs.filter(d => d.id !== doc.id))}
+                                        className="text-zinc-600 hover:text-rose-500 transition-colors"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </Card>
+        )}
     </div>
   );
 
-  // Conditional Rendering for Landing Page
-  if (!isAuthenticated) {
-     return <LandingPage onLoginSuccess={() => setIsAuthenticated(true)} />;
-  }
-
-  // Dashboard Layout (Authenticated)
   return (
     <div className="flex h-screen bg-zinc-950 font-sans overflow-hidden text-zinc-200 selection:bg-indigo-500/30">
-      <Sidebar 
-        currentView={view} 
-        onNavigate={setView} 
-        isMobileOpen={isMobileOpen}
-        setIsMobileOpen={setIsMobileOpen}
-      />
+      <TutorialOverlay isOpen={showTutorial} onClose={handleCloseTutorial} steps={TUTORIAL_STEPS} />
+      <Sidebar currentView={view} onNavigate={setView} isMobileOpen={isMobileOpen} setIsMobileOpen={setIsMobileOpen} />
       
       <main className="flex-1 flex flex-col overflow-hidden relative w-full">
-        {/* Mobile Header */}
+        <header className="hidden lg:flex items-center justify-between h-16 px-8 border-b border-zinc-800 bg-zinc-950 shrink-0 z-20">
+            <div className="flex items-center text-sm text-zinc-500 gap-2">
+                <span className="font-semibold text-zinc-200">BidPilot</span> 
+                <span className="text-zinc-700">/</span>
+                <span className="capitalize text-zinc-400">{view === 'dashboard' ? 'Mission Control' : view.replace('-', ' ')}</span>
+            </div>
+            <div className="flex items-center gap-4">
+                 {isDemo && (
+                     <Badge variant="warning">DEMO MODE</Badge>
+                 )}
+                 <button onClick={() => setShowTutorial(true)} className="p-2 text-zinc-500 hover:text-zinc-300 transition-colors mr-2" title="Start Tutorial">
+                    <HelpCircle size={18} />
+                 </button>
+                 <div className="h-4 w-px bg-zinc-800"></div>
+                 <div className="flex items-center gap-3 pl-2 cursor-pointer group">
+                    <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold">
+                        {user?.displayName?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="text-sm font-medium text-zinc-300 hidden md:block">{user?.displayName || user?.email}</div>
+                    <button onClick={() => logout()} title="Sign Out" className="text-zinc-600 hover:text-red-400 transition-colors ml-2">
+                        <LogOut size={16} />
+                    </button>
+                 </div>
+            </div>
+        </header>
+
         <div className="lg:hidden h-16 bg-zinc-950 border-b border-zinc-800 flex items-center justify-between px-4 shrink-0">
-          <div className="text-white font-bold flex items-center gap-2">
-            <BrainCircuit className="text-white" />
-            BidPilot
-          </div>
-          <button onClick={() => setIsMobileOpen(true)} className="text-zinc-400">
-            <Menu />
-          </button>
+          <div className="text-white font-bold flex items-center gap-2"><BrainCircuit className="text-white" />BidPilot</div>
+          <button onClick={() => setIsMobileOpen(true)} className="text-zinc-400"><Menu /></button>
         </div>
 
-        {/* User Profile Bar (Top Right) */}
-        <div className="hidden lg:flex absolute top-4 right-8 z-50">
-           <div className="flex items-center gap-3 bg-zinc-900/50 border border-zinc-800 rounded-full px-4 py-2 hover:bg-zinc-900 transition-colors cursor-pointer group backdrop-blur-md">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center text-white text-xs font-bold">
-                 BP
-              </div>
-              <div className="text-sm font-medium text-zinc-300 group-hover:text-white">Admin User</div>
-              <button 
-                onClick={() => setIsAuthenticated(false)}
-                className="ml-2 text-zinc-500 hover:text-red-400 transition-colors" 
-                title="Logout"
-              >
-                 <LogOut size={14} />
-              </button>
-           </div>
-        </div>
-
-        <div className="flex-1 overflow-auto scrollbar-hide pt-16 lg:pt-0">
+        <div className="flex-1 overflow-auto scrollbar-hide">
           {view === 'dashboard' && renderDashboard()}
           
           {view === 'analysis' && (
             <div className="h-full p-4 md:p-6 bg-zinc-950 animate-in fade-in duration-500">
                <Terminal 
                  logs={logs} 
-                 isAnalyzing={isAnalyzing} 
-                 verdict={verdict} 
+                 isAnalyzing={activeProject?.status === 'analyzing'} 
+                 verdict={activeProject?.verdict || 'pending'} 
                  onViewDraft={() => setView('draft')} 
                />
             </div>
           )}
           
-          {view === 'knowledge' && renderKnowledge()}
+          {view === 'knowledge' && renderKnowledge()} 
           
-          {view === 'draft' && renderDraft()}
+          {view === 'draft' && (
+            <div className="flex flex-col h-full bg-zinc-950 animate-in fade-in duration-700">
+                <div className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between bg-zinc-900/50 backdrop-blur-md sticky top-0 z-10">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-violet-500/10 p-2.5 rounded-lg text-violet-400 border border-violet-500/20"><PenTool size={20} /></div>
+                        <div>
+                            <h2 className="font-bold text-zinc-100">Project Draft</h2>
+                            <p className="text-xs text-zinc-500">{activeProject?.title}</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="flex-1 overflow-auto bg-zinc-950 p-8">
+                    <div className="bg-white shadow-2xl min-h-[800px] max-w-4xl mx-auto p-16 rounded-sm text-zinc-900 prose">
+                        <pre className="whitespace-pre-wrap font-serif text-lg">{activeProject?.draftContent || "Draft generation pending..."}</pre>
+                    </div>
+                </div>
+            </div>
+          )}
           
           {view === 'settings' && (
-              <div key="settings" className="p-8 max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-500">
-                  <h1 className="text-2xl font-bold text-zinc-100 mb-2">Swarm Configuration</h1>
-                  <p className="text-zinc-500 mb-8">Configure global parameters for The Gatekeeper and The Auditor.</p>
-                  
-                  <Card className="p-16 text-center border-dashed border-zinc-800 bg-zinc-900/20">
-                    <Settings size={48} className="mx-auto text-zinc-700 mb-4" />
-                    <p className="text-zinc-500">Settings module configuration is locked in this demo.</p>
-                  </Card>
+              <div className="p-8 text-center text-zinc-500 mt-20">
+                  <Settings size={48} className="mx-auto mb-4 opacity-20" />
+                  <h2 className="text-xl font-bold text-zinc-300">Swarm Configuration</h2>
+                  <p>Agent parameter tuning is disabled in this MVP.</p>
               </div>
           )}
         </div>
       </main>
     </div>
   );
+};
+
+export default function App() {
+    return (
+        <AuthProvider>
+            <AuthWrapper />
+        </AuthProvider>
+    );
 }
+
+const AuthWrapper = () => {
+    const { user, loading } = useAuth();
+    if (loading) return <div className="h-screen bg-zinc-950 flex items-center justify-center text-white">Loading BidPilot...</div>;
+    if (!user) return <LandingPage onLoginSuccess={() => {}} />;
+    return <AppContent />;
+};

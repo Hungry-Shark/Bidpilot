@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { 
   BrainCircuit, 
@@ -26,11 +27,11 @@ const ACTIVE_AGENTS = [
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, isMobileOpen, setIsMobileOpen }) => {
   
   const navItems = [
-    { id: 'dashboard', icon: LayoutDashboard, label: 'Mission Control' },
-    { id: 'knowledge', icon: Database, label: 'Knowledge Base' },
-    { id: 'analysis', icon: Activity, label: 'Live Swarm' },
-    { id: 'draft', icon: PenTool, label: 'Drafting Room' },
-    { id: 'settings', icon: Settings, label: 'Swarm Config' },
+    { id: 'dashboard', icon: LayoutDashboard, label: 'Mission Control', tourId: 'nav-dashboard' },
+    { id: 'knowledge', icon: Database, label: 'Knowledge Base', tourId: 'nav-knowledge' },
+    { id: 'analysis', icon: Activity, label: 'Live Swarm', tourId: 'nav-analysis' },
+    { id: 'draft', icon: PenTool, label: 'Drafting Room', tourId: 'nav-draft' },
+    { id: 'settings', icon: Settings, label: 'Swarm Config', tourId: 'nav-settings' },
   ];
 
   const sidebarClasses = `
@@ -59,7 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, isMob
           <p className="text-xs text-zinc-500 mt-3 pl-1">Autonomous Proposal Engine</p>
         </div>
 
-        <nav className="flex-1 px-4 space-y-1 mt-4">
+        <nav className="flex-1 px-4 space-y-1 mt-4" data-tour="sidebar-nav">
           {navItems.map((item) => (
             <button 
               key={item.id}
@@ -67,6 +68,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, isMob
                 onNavigate(item.id as ViewState);
                 setIsMobileOpen(false);
               }}
+              data-tour={item.tourId}
               className={`flex items-center w-full px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200 group ${
                 currentView === item.id 
                   ? 'bg-zinc-900 text-white border border-zinc-800' 

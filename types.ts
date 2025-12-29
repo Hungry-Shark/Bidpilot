@@ -1,3 +1,4 @@
+
 export type ViewState = 'dashboard' | 'analysis' | 'knowledge' | 'draft' | 'settings';
 
 export type LogType = 'info' | 'success' | 'error' | 'warning' | 'code';
@@ -11,18 +12,32 @@ export interface LogEntry {
 }
 
 export interface Document {
-  id: number;
+  id: string; // Changed to string for Firestore IDs
   name: string;
   size: string;
   date: string;
   tags: string[];
+  userId?: string;
 }
 
 export type Verdict = 'pending' | 'go' | 'no-go';
 
-export const MOCK_KNOWLEDGE_BASE: Document[] = [
-  { id: 1, name: "Proposal_BankOfAmerica_2024.pdf", size: "12MB", date: "Oct 2024", tags: ["Finance", "Security", "Cloud"] },
-  { id: 2, name: "CaseStudy_HealthPlus.docx", size: "2MB", date: "Sep 2024", tags: ["Healthcare", "Migration"] },
-  { id: 3, name: "ISO_27001_Cert.pdf", size: "1MB", date: "Jan 2025", tags: ["Compliance"] },
-  { id: 4, name: "Team_Bios_Engineering.pdf", size: "4MB", date: "Aug 2024", tags: ["HR", "Staffing"] },
-];
+export interface TutorialStep {
+  target: string;
+  title: string;
+  content: string;
+  position?: 'top' | 'bottom' | 'left' | 'right' | 'center';
+}
+
+export interface Project {
+  id: string;
+  userId: string;
+  title: string;
+  rfpText: string;
+  strategyContext?: string; // New field for user strategy/win themes
+  status: 'analyzing' | 'completed' | 'failed';
+  verdict: Verdict;
+  logs: LogEntry[];
+  draftContent: string;
+  createdAt: any; // Firestore Timestamp
+}
