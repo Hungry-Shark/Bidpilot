@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
-import { BrainCircuit, Play, ArrowRight, CheckCircle2, Zap } from 'lucide-react';
+import { BrainCircuit, Play, ArrowRight, CheckCircle2, Zap, Github, Twitter, Linkedin } from 'lucide-react';
 import { Button } from './Button';
 import { LoginModal } from './LoginModal';
 import { useAuth } from '../contexts/AuthContext';
 import { MagnetLines } from './MagnetLines';
-import { AgentMasonry } from './AgentMasonry';
+import { CardStack } from './CardStack'; // Import the new CardStack
 
 interface LandingPageProps {
   onLoginSuccess: () => void;
@@ -45,7 +45,7 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
       {/* Hero Section with Magnet Lines */}
       <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 px-6 overflow-hidden min-h-[90vh] flex items-center">
         
-        {/* Magnet Lines Background - Absolute positioned but behind content */}
+        {/* Magnet Lines Background */}
         <div className="absolute inset-0 z-0 opacity-40 md:opacity-100 pointer-events-none md:pointer-events-auto">
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120vw] h-[120vh]">
                  <MagnetLines 
@@ -59,7 +59,6 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
             </div>
         </div>
         
-        {/* Overlay gradient to fade edges of lines */}
         <div className="absolute inset-0 bg-gradient-to-b from-zinc-950 via-transparent to-zinc-950 z-0 pointer-events-none" />
         <div className="absolute inset-0 bg-radial-gradient from-transparent to-zinc-950 z-0 pointer-events-none opacity-80" />
 
@@ -122,25 +121,108 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
         </div>
       </section>
 
-      {/* Masonry Section for Agents */}
-      <section className="py-24 bg-zinc-950 relative z-10">
-        <div className="max-w-7xl mx-auto px-6 mb-16 text-center">
-            <h2 className="text-3xl md:text-5xl font-bold mb-4">Meet the Swarm</h2>
-            <p className="text-zinc-400 max-w-2xl mx-auto">
-                Specialized autonomous agents working in parallel to deliver 
-                higher win rates with 90% less human effort.
-            </p>
+      {/* Card Swap Section - "Meet the Swarm" */}
+      <section className="py-24 bg-zinc-950 relative z-10 overflow-hidden border-t border-zinc-900">
+        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            
+            {/* Left Column: Text */}
+            <div className="animate-in slide-in-from-left-8 duration-700">
+                <div className="inline-flex items-center gap-2 text-indigo-400 font-bold tracking-wider uppercase text-xs mb-4">
+                    <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+                    Agent Ecosystem
+                </div>
+                <h2 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">
+                    The First Fully Autonomous <br />
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">Proposal Swarm</span>
+                </h2>
+                <p className="text-zinc-400 text-lg leading-relaxed mb-8">
+                    Unlike traditional tools that require manual tagging, BidPilot employs specialized AI agents. 
+                    From <strong>The Historian</strong> who indexes your past wins, to <strong>The Auditor</strong> who ensures compliance, 
+                    watch them work in harmony.
+                </p>
+                <div className="flex flex-col gap-4">
+                    <div className="flex items-center gap-4 text-sm text-zinc-300">
+                        <div className="w-10 h-10 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center font-bold text-indigo-400">5</div>
+                        <div>
+                            <span className="block font-bold">Specialized Agents</span>
+                            <span className="text-zinc-500 text-xs">Working in parallel</span>
+                        </div>
+                    </div>
+                    <div className="w-px h-8 bg-zinc-800 ml-5"></div>
+                    <div className="flex items-center gap-4 text-sm text-zinc-300">
+                        <div className="w-10 h-10 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center font-bold text-emerald-400">0</div>
+                        <div>
+                            <span className="block font-bold">Manual Tagging</span>
+                            <span className="text-zinc-500 text-xs">Required by humans</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Right Column: Card Swap Animation */}
+            <div className="flex justify-center lg:justify-end animate-in slide-in-from-right-8 duration-700 delay-200">
+                <CardStack />
+            </div>
+
         </div>
-        <AgentMasonry />
       </section>
 
-      <footer className="border-t border-zinc-900 py-12 bg-zinc-950 relative z-10">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center">
-             <div className="flex items-center gap-2 mb-4 md:mb-0">
-                <div className="bg-zinc-800 p-1.5 rounded"><BrainCircuit className="text-zinc-400" size={18} /></div>
-                <span className="font-bold text-zinc-300">BidPilot</span>
+      {/* Footer */}
+      <footer className="border-t border-zinc-900 bg-zinc-950 pt-16 pb-8 relative z-10">
+        <div className="max-w-7xl mx-auto px-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+                <div className="col-span-1 md:col-span-1">
+                    <div className="flex items-center gap-2 mb-4">
+                        <div className="bg-zinc-800 p-1.5 rounded"><BrainCircuit className="text-zinc-400" size={18} /></div>
+                        <span className="font-bold text-zinc-100 text-lg">BidPilot</span>
+                    </div>
+                    <p className="text-zinc-500 text-sm leading-relaxed mb-4">
+                        The autonomous proposal engine for high-growth enterprise teams.
+                    </p>
+                    <div className="flex gap-4 text-zinc-500">
+                        <Github size={18} className="hover:text-white cursor-pointer transition-colors"/>
+                        <Twitter size={18} className="hover:text-white cursor-pointer transition-colors"/>
+                        <Linkedin size={18} className="hover:text-white cursor-pointer transition-colors"/>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 className="font-bold text-zinc-100 mb-4">Product</h4>
+                    <ul className="space-y-2 text-sm text-zinc-500">
+                        <li className="hover:text-indigo-400 cursor-pointer">Agent Swarm</li>
+                        <li className="hover:text-indigo-400 cursor-pointer">Security</li>
+                        <li className="hover:text-indigo-400 cursor-pointer">Integrations</li>
+                        <li className="hover:text-indigo-400 cursor-pointer">Pricing</li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 className="font-bold text-zinc-100 mb-4">Resources</h4>
+                    <ul className="space-y-2 text-sm text-zinc-500">
+                        <li className="hover:text-indigo-400 cursor-pointer">Documentation</li>
+                        <li className="hover:text-indigo-400 cursor-pointer">API Reference</li>
+                        <li className="hover:text-indigo-400 cursor-pointer">Case Studies</li>
+                        <li className="hover:text-indigo-400 cursor-pointer">System Status</li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 className="font-bold text-zinc-100 mb-4">Legal</h4>
+                    <ul className="space-y-2 text-sm text-zinc-500">
+                        <li className="hover:text-indigo-400 cursor-pointer">Privacy Policy</li>
+                        <li className="hover:text-indigo-400 cursor-pointer">Terms of Service</li>
+                        <li className="hover:text-indigo-400 cursor-pointer">Cookie Policy</li>
+                    </ul>
+                </div>
             </div>
-            <p className="text-zinc-600 text-sm">&copy; 2025 BidPilot Inc. Powered by Google Gemini.</p>
+            
+            <div className="border-t border-zinc-900 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-zinc-600">
+                <p>&copy; 2025 BidPilot Inc. All rights reserved.</p>
+                <div className="flex items-center gap-2 mt-2 md:mt-0">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span>All Systems Operational</span>
+                </div>
+            </div>
         </div>
       </footer>
     </div>

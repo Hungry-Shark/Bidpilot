@@ -13,6 +13,7 @@ import { Button } from './components/Button';
 import { Badge } from './components/Badge';
 import { LandingPage } from './components/LandingPage';
 import { TutorialOverlay } from './components/TutorialOverlay';
+import { CreateProjectModal } from './components/CreateProjectModal'; // Import Modal
 import { LogEntry, ViewState, Verdict, TutorialStep, Project, Document } from './types';
 
 // Firebase & Agents
@@ -27,15 +28,12 @@ const AppContent = () => {
   const [view, setView] = useState<ViewState>('dashboard');
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false); // Modal State
   
   // Real Data State
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  
-  // Input State
-  const [inputRfpText, setInputRfpText] = useState("");
-  const [inputStrategy, setInputStrategy] = useState("");
   
   // Knowledge Base State - Empty by default now
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -84,18 +82,11 @@ const AppContent = () => {
     return unsubscribe;
   }, [user, activeProject, isDemo]);
 
-  const handleRunRealBid = async () => {
+  // Refactored to accept data object
+  const handleRunRealBid = async (projectData: { title: string, rfpText: string, strategy: string }) => {
     if (!user) return;
     
-    // Default text for lazy testing if empty
-    const textToProcess = inputRfpText.trim() || `RFP for Enterprise Logistics System. 
-    Client: Global Freight Corp. 
-    Budget: $150,000. 
-    Timeline: 6 months. 
-    Requirements: Must use Python, Cloud-Native architecture. No on-premise solutions. 
-    Security: ISO 27001 required.`;
-
-    const strategyToProcess = inputStrategy.trim();
+    const { title, rfpText, strategy } = projectData;
 
     setView('analysis');
     setLogs([]); // Clear previous logs
@@ -105,11 +96,11 @@ const AppContent = () => {
     const newProject: Project = {
         id: tempId,
         userId: user.uid,
-        title: `RFP Analysis - ${new Date().toLocaleTimeString()}`,
+        title: title,
         status: 'analyzing',
         verdict: 'pending',
-        rfpText: textToProcess,
-        strategyContext: strategyToProcess,
+        rfpText: rfpText,
+        strategyContext: strategy,
         logs: [],
         draftContent: '',
         createdAt: new Date()
@@ -118,10 +109,9 @@ const AppContent = () => {
     setActiveProject(newProject);
     setProjects(prev => [newProject, ...prev]);
 
-    // Define callbacks to update local state immediately (bypassing Firestore latency/permission issues)
+    // Define callbacks to update local state immediately
     const onLog = (log: LogEntry) => {
         setLogs(prev => [...prev, log]);
-        // Also update the active project object in state
         setActiveProject(prev => prev ? { ...prev, logs: [...(prev.logs || []), log] } : null);
     };
 
@@ -148,8 +138,8 @@ const AppContent = () => {
             }
         }
 
-        // Run the agents (passing isDemo flag, callbacks, AND Strategy)
-        runBidSwarm(firestoreId, textToProcess, strategyToProcess, isDemo, onLog, onUpdateProject);
+        // Run the agents
+        runBidSwarm(firestoreId, rfpText, strategy, isDemo, onLog, onUpdateProject);
 
     } catch (e) {
         console.error("Failed to start bid", e);
@@ -176,7 +166,7 @@ const AppContent = () => {
   const TUTORIAL_STEPS: TutorialStep[] = [
     { target: 'body', title: 'Welcome to BidPilot', content: 'This guided tour will show you how to automate your RFP response process.', position: 'center' },
     { target: '[data-tour="metrics-row"]', title: 'Mission Control', content: 'Monitor your win probabilities and active drafts.', position: 'bottom' },
-    { target: '[data-tour="run-bid-area"]', title: 'Start Automation', content: 'Paste RFP text here and click "Run Agent Swarm".', position: 'bottom' }
+    { target: '[data-tour="create-btn"]', title: 'Start Automation', content: 'Click here to initialize a new RFP analysis.', position: 'bottom' }
   ];
 
   const renderDashboard = () => (
@@ -186,54 +176,12 @@ const AppContent = () => {
             <h1 className="text-3xl font-bold text-zinc-100 tracking-tight">Mission Control</h1>
             <p className="text-zinc-500 mt-2 text-lg">Real-time oversight of autonomous proposal operations.</p>
         </div>
+        <div data-tour="create-btn">
+             <Button onClick={() => setShowCreateModal(true)} icon={Plus} className="bg-indigo-600 hover:bg-indigo-500 text-white shadow-[0_0_20px_rgba(79,70,229,0.4)] border-0 px-6 h-12 text-base">
+                New Project
+            </Button>
+        </div>
       </header>
-
-      {/* Input Area */}
-      <Card className="p-6 border-indigo-900/50 bg-indigo-950/10" >
-         <div className="flex flex-col gap-6" data-tour="run-bid-area">
-            <div>
-                <h3 className="font-semibold text-indigo-100 flex items-center gap-2 mb-3">
-                    <BrainCircuit size={18} />
-                    New Autonomous Bid
-                </h3>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {/* Column 1: RFP Text */}
-                    <div className="space-y-2">
-                        <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">RFP Content</label>
-                        <textarea 
-                            className="w-full bg-zinc-950/50 border border-zinc-700 rounded-lg p-3 text-sm text-zinc-300 min-h-[160px] focus:ring-1 focus:ring-indigo-500 outline-none font-mono resize-none"
-                            placeholder="Paste raw RFP text here... (e.g., 'Client needs a cloud migration proposal, budget $100k...')"
-                            value={inputRfpText}
-                            onChange={(e) => setInputRfpText(e.target.value)}
-                        />
-                    </div>
-                    
-                    {/* Column 2: Strategy */}
-                    <div className="space-y-2">
-                        <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider flex items-center gap-2">
-                            <Lightbulb size={12} className="text-amber-400" />
-                            Bid Strategy & Win Themes
-                        </label>
-                        <textarea 
-                            className="w-full bg-zinc-950/50 border border-zinc-700 rounded-lg p-3 text-sm text-zinc-300 min-h-[160px] focus:ring-1 focus:ring-amber-500/50 outline-none font-sans resize-none"
-                            placeholder="Tell the AI what to prioritize...&#10;• Focus on our low implementation cost&#10;• Highlight our ISO-27001 security&#10;• Watch out for: 'On-premise' requirements (Red Flag)"
-                            value={inputStrategy}
-                            onChange={(e) => setInputStrategy(e.target.value)}
-                        />
-                    </div>
-                </div>
-            </div>
-
-            <div className="flex justify-between items-center pt-2 border-t border-indigo-900/30">
-                <span className="text-xs text-zinc-500">
-                    {isDemo ? "Running in Simulation Mode (No Database Write)" : "Connected to Live Database"}
-                </span>
-                <Button onClick={handleRunRealBid} icon={Play} className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-500 text-white shadow-[0_0_20px_rgba(79,70,229,0.4)] border-0">
-                    Run Agent Swarm
-                </Button>
-            </div>
-         </div>
-      </Card>
 
       {/* Dynamic Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4" data-tour="metrics-row">
@@ -293,7 +241,7 @@ const AppContent = () => {
                      {projects.length === 0 ? (
                         <tr>
                             <td colSpan={4} className="px-4 py-8 text-center text-zinc-500">
-                                No projects yet. Start a new bid above.
+                                No projects yet. Click 'New Project' to launch the swarm.
                             </td>
                         </tr>
                      ) : (
@@ -301,8 +249,8 @@ const AppContent = () => {
                             <tr key={proj.id} className="hover:bg-zinc-800/30 transition-colors">
                                <td className="px-4 py-3 font-medium text-zinc-200">{proj.title}</td>
                                <td className="px-4 py-3">
-                                  <Badge variant={proj.status === 'completed' ? 'success' : proj.status === 'failed' ? 'error' : 'default'}>
-                                    {proj.status}
+                                  <Badge variant={proj.status === 'completed' ? 'success' : proj.status === 'failed' ? 'error' : proj.status === 'analyzing' ? 'warning' : 'default'}>
+                                    {proj.status === 'analyzing' ? 'Processing' : proj.status}
                                   </Badge>
                                </td>
                                <td className="px-4 py-3 capitalize text-zinc-400">
@@ -313,9 +261,9 @@ const AppContent = () => {
                                <td className="px-4 py-3 text-right">
                                   <Button variant="ghost" className="h-6 w-6 p-0" onClick={() => {
                                       setActiveProject(proj);
-                                      // If it was completed, set logs from it so user can see history
                                       if (proj.logs) setLogs(proj.logs);
-                                      setView('draft');
+                                      // If processing, go to analysis, else draft
+                                      setView(proj.status === 'analyzing' ? 'analysis' : 'draft');
                                   }}>
                                      <MoreHorizontal size={14} />
                                   </Button>
@@ -428,6 +376,12 @@ const AppContent = () => {
   return (
     <div className="flex h-screen bg-zinc-950 font-sans overflow-hidden text-zinc-200 selection:bg-indigo-500/30">
       <TutorialOverlay isOpen={showTutorial} onClose={handleCloseTutorial} steps={TUTORIAL_STEPS} />
+      <CreateProjectModal 
+        isOpen={showCreateModal} 
+        onClose={() => setShowCreateModal(false)} 
+        onSubmit={handleRunRealBid} 
+      />
+      
       <Sidebar currentView={view} onNavigate={setView} isMobileOpen={isMobileOpen} setIsMobileOpen={setIsMobileOpen} />
       
       {/* Added lg:ml-64 to compensate for the fixed sidebar */}
