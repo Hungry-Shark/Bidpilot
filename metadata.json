@@ -1,0 +1,5 @@
+{
+  "name": "BidPilot",
+  "description": "An autonomous AI agent ecosystem for proposal management and RFP automation. Features a 'Glass Box' terminal view to visualize multi-agent operations.",
+  "requestFramePermissions": []
+}
