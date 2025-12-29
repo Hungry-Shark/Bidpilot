@@ -11,16 +11,30 @@ import {
   TrendingUp,
   AlertCircle,
   BrainCircuit,
-  Settings
+  Settings,
+  MoreHorizontal,
+  CheckCircle2,
+  CircleDashed,
+  Search,
+  Plus,
+  ArrowUpRight,
+  ArrowDownRight,
+  LogOut,
+  User
 } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { Terminal } from './components/Terminal';
 import { Card } from './components/Card';
 import { Button } from './components/Button';
 import { Badge } from './components/Badge';
+import { LandingPage } from './components/LandingPage';
 import { LogEntry, MOCK_KNOWLEDGE_BASE, ViewState, Verdict } from './types';
 
 export default function App() {
+  // Auth State
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // App State
   const [view, setView] = useState<ViewState>('dashboard');
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   
@@ -96,81 +110,199 @@ We will deploy a microservices architecture on AWS, utilizing Kubernetes for orc
     }, 19000);
   };
 
+  const PROPOSAL_OUTLINE = [
+    { id: 1, section: 'Cover Page', type: 'Cover', status: 'In Process', target: 50, limit: 100, reviewer: 'The Architect' },
+    { id: 2, section: 'Executive Summary', type: 'Narrative', status: 'Done', target: 1200, limit: 1500, reviewer: 'The Gatekeeper' },
+    { id: 3, section: 'Technical Approach', type: 'Narrative', status: 'Done', target: 3500, limit: 5000, reviewer: 'The Auditor' },
+    { id: 4, section: 'Security Compliance', type: 'Table', status: 'In Process', target: 800, limit: 1000, reviewer: 'The Quant' },
+    { id: 5, section: 'Pricing Model', type: 'Financial', status: 'Pending', target: 0, limit: 500, reviewer: 'The Quant' },
+    { id: 6, section: 'Case Studies', type: 'Narrative', status: 'Pending', target: 2000, limit: 2500, reviewer: 'The Historian' },
+  ];
+
   const renderDashboard = () => (
-    <div key="dashboard" className="p-4 md:p-8 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700 pb-20">
-      <header className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+    <div key="dashboard" className="p-4 md:p-8 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700 pb-20 space-y-8">
+      {/* Header */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
             <h1 className="text-3xl font-bold text-zinc-100 tracking-tight">Mission Control</h1>
-            <p className="text-zinc-500 mt-2 text-lg">Your autonomous sales operations center.</p>
+            <p className="text-zinc-500 mt-2 text-lg">Real-time oversight of autonomous proposal operations.</p>
         </div>
-        <Button onClick={startFullSimulation} icon={Play} className="w-full md:w-auto py-3 text-base">Run New Bid Simulation</Button>
+        <div className="flex items-center gap-3">
+           <Button variant="secondary" icon={UploadCloud}>Import RFP</Button>
+           <Button onClick={startFullSimulation} icon={Play} className="w-full md:w-auto py-3 text-base">Run New Bid</Button>
+        </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+      {/* Metrics Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {[
-          { icon: TrendingUp, label: "Win Probability", value: "78%", sub: "+12% vs Manual", color: "text-emerald-500", border: "border-l-emerald-500" },
-          { icon: Clock, label: "Hours Saved", value: "342", sub: "~ 2.5 FTEs", color: "text-indigo-400", border: "border-l-indigo-500" },
-          { icon: PenTool, label: "Active Drafts", value: "3", sub: "The Architect", color: "text-violet-400", border: "border-l-violet-500" },
-          { icon: AlertCircle, label: "Blocked Bids", value: "14", sub: "Gatekeeper", color: "text-amber-400", border: "border-l-amber-500" },
+          { label: "Active Pipeline Value", value: "$1.2M", trend: "+12.5%", trendUp: true, sub: "Trending up this month" },
+          { label: "Win Probability", value: "78%", trend: "+5%", trendUp: true, sub: "Above industry average" },
+          { label: "Active Drafts", value: "3", trend: "-1", trendUp: false, sub: "Processing normally" },
+          { label: "Avg. Response Time", value: "1.2d", trend: "-20%", trendUp: true, sub: "Efficiency increasing" },
         ].map((stat, i) => (
-          <Card key={i} className={`p-6 border-l-4 ${stat.border} hover:bg-zinc-900 transition-all duration-300 group`}>
-             <div className="text-zinc-500 text-xs font-bold uppercase mb-2 flex items-center gap-2">
-                <stat.icon size={14} className={stat.color} /> {stat.label}
+          <Card key={i} className="p-6 bg-zinc-900/40 border-zinc-800 hover:border-zinc-700 transition-colors">
+             <div className="flex justify-between items-start mb-4">
+                <span className="text-zinc-400 font-medium text-sm">{stat.label}</span>
+                <span className={`flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${stat.trendUp ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                   {stat.trend} {stat.trendUp ? <ArrowUpRight size={12} className="ml-1"/> : <ArrowDownRight size={12} className="ml-1"/>}
+                </span>
              </div>
-             <div className="text-4xl font-bold text-zinc-100 tracking-tight group-hover:scale-105 transition-transform origin-left">{stat.value}</div>
-             <p className="text-xs text-zinc-500 mt-2 font-medium bg-zinc-800/50 inline-block px-2 py-1 rounded border border-zinc-800">{stat.sub}</p>
+             <div className="text-3xl font-bold text-zinc-100 mb-1">{stat.value}</div>
+             <div className="text-zinc-500 text-xs">{stat.sub}</div>
           </Card>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          <Card className="h-full">
-            <div className="p-6 border-b border-zinc-800 flex justify-between items-center">
-              <h3 className="font-bold text-zinc-100 flex items-center gap-2">
-                  <Activity size={20} className="text-zinc-400" />
-                  Recent Agent Activity
+      {/* Chart Section */}
+      <Card className="p-6 bg-zinc-900/40 border-zinc-800">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h3 className="text-lg font-semibold text-zinc-100">Bid Activity Volume</h3>
+            <p className="text-zinc-500 text-sm">Processing load over last 30 days</p>
+          </div>
+          <div className="flex gap-2">
+             <Button variant="ghost" className="text-xs h-8 bg-zinc-800/50 text-zinc-300">Last 30 days</Button>
+             <Button variant="ghost" className="text-xs h-8 text-zinc-500">Last 7 days</Button>
+          </div>
+        </div>
+        <div className="h-64 w-full relative">
+           {/* Decorative Chart SVG */}
+           <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 1000 300">
+              <defs>
+                 <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#818cf8" stopOpacity="0.2"/>
+                    <stop offset="100%" stopColor="#818cf8" stopOpacity="0"/>
+                 </linearGradient>
+              </defs>
+              <path d="M0,250 C100,200 200,300 300,150 C400,0 500,200 600,180 C700,160 800,250 900,100 L1000,250 L1000,300 L0,300 Z" fill="url(#chartGradient)" />
+              <path d="M0,250 C100,200 200,300 300,150 C400,0 500,200 600,180 C700,160 800,250 900,100 L1000,250" fill="none" stroke="#818cf8" strokeWidth="3" vectorEffect="non-scaling-stroke" />
+              
+              {/* Secondary Line */}
+              <path d="M0,280 C150,260 250,280 400,200 C550,120 650,220 750,200 C850,180 900,220 1000,180" fill="none" stroke="#4f46e5" strokeWidth="2" strokeDasharray="5,5" strokeOpacity="0.5" vectorEffect="non-scaling-stroke" />
+           </svg>
+           {/* Labels */}
+           <div className="absolute bottom-0 w-full flex justify-between text-[10px] text-zinc-600 px-2">
+              <span>Apr 7</span>
+              <span>Apr 14</span>
+              <span>Apr 21</span>
+              <span>Apr 28</span>
+              <span>May 5</span>
+              <span>May 12</span>
+              <span>May 19</span>
+           </div>
+        </div>
+      </Card>
+
+      {/* Bottom Section: Document Outline & Recent Activity */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        
+        {/* Proposal Outline Table */}
+        <div className="xl:col-span-2">
+          <Card className="h-full bg-zinc-900/40 border-zinc-800 overflow-hidden">
+             <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/20">
+                <div className="flex items-center gap-4">
+                   <h3 className="font-semibold text-zinc-200">Active Proposal Outline</h3>
+                   <div className="flex gap-2">
+                      <Badge variant="outline" className="bg-zinc-800/50 text-zinc-300">Gov_RFP_Transport</Badge>
+                      <Badge variant="outline" className="bg-zinc-800/50 text-zinc-500">v2.4</Badge>
+                   </div>
+                </div>
+                <div className="flex items-center gap-2">
+                   <Button variant="ghost" className="h-7 w-7 p-0"><Search size={14}/></Button>
+                   <Button variant="ghost" className="h-7 w-7 p-0"><Plus size={14}/></Button>
+                </div>
+             </div>
+             
+             <div className="overflow-x-auto">
+               <table className="w-full text-sm text-left">
+                  <thead className="text-xs text-zinc-500 uppercase bg-zinc-900/50">
+                     <tr>
+                        <th className="px-4 py-3 font-medium">Section</th>
+                        <th className="px-4 py-3 font-medium">Type</th>
+                        <th className="px-4 py-3 font-medium">Status</th>
+                        <th className="px-4 py-3 font-medium text-right">Target Words</th>
+                        <th className="px-4 py-3 font-medium">Agent Owner</th>
+                        <th className="px-4 py-3 font-medium"></th>
+                     </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800">
+                     {PROPOSAL_OUTLINE.map((row) => (
+                        <tr key={row.id} className="hover:bg-zinc-800/30 transition-colors group">
+                           <td className="px-4 py-3 font-medium text-zinc-200">{row.section}</td>
+                           <td className="px-4 py-3">
+                              <span className="px-2 py-1 rounded text-xs bg-zinc-800 text-zinc-400 border border-zinc-700">{row.type}</span>
+                           </td>
+                           <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                 {row.status === 'Done' && <CheckCircle2 size={14} className="text-emerald-500" />}
+                                 {row.status === 'In Process' && <CircleDashed size={14} className="text-amber-500 animate-spin-slow" />}
+                                 {row.status === 'Pending' && <div className="w-3.5 h-3.5 rounded-full border-2 border-zinc-700" />}
+                                 <span className={
+                                    row.status === 'Done' ? 'text-emerald-400' : 
+                                    row.status === 'In Process' ? 'text-amber-400' : 'text-zinc-500'
+                                 }>{row.status}</span>
+                              </div>
+                           </td>
+                           <td className="px-4 py-3 text-right font-mono text-zinc-400">{row.target}</td>
+                           <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                 <div className={`w-1.5 h-1.5 rounded-full ${
+                                    row.reviewer === 'The Architect' ? 'bg-violet-500' : 
+                                    row.reviewer === 'The Quant' ? 'bg-amber-500' :
+                                    'bg-cyan-500'
+                                 }`} />
+                                 <span className="text-zinc-400">{row.reviewer}</span>
+                              </div>
+                           </td>
+                           <td className="px-4 py-3 text-right">
+                              <Button variant="ghost" className="h-6 w-6 p-0 text-zinc-600 hover:text-zinc-300">
+                                 <MoreHorizontal size={14} />
+                              </Button>
+                           </td>
+                        </tr>
+                     ))}
+                  </tbody>
+               </table>
+             </div>
+          </Card>
+        </div>
+
+        {/* Recent Activity Feed */}
+        <div className="xl:col-span-1">
+          <Card className="h-full bg-zinc-900/40 border-zinc-800">
+            <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/20">
+              <h3 className="font-semibold text-zinc-200 flex items-center gap-2">
+                  <Activity size={16} className="text-indigo-400" />
+                  Live Feed
               </h3>
-              <Button variant="ghost" className="text-xs h-8">View Full Logs</Button>
+              <Badge variant="outline" className="text-[10px] bg-emerald-500/5 text-emerald-400 border-emerald-500/20">Online</Badge>
             </div>
             <div className="divide-y divide-zinc-800/50">
                 {[
-                    { agent: "The Quant", action: "Filled Security Questionnaire for Client X", time: "10 min ago", color: "bg-amber-500/10 text-amber-500" },
-                    { agent: "The Historian", action: "Indexed 4 new case studies from G-Drive", time: "1 hour ago", color: "bg-cyan-500/10 text-cyan-500" },
-                    { agent: "The Gatekeeper", action: "Rejected 'Project Alpha' (Budget too low)", time: "2 hours ago", color: "bg-rose-500/10 text-rose-500" },
-                    { agent: "The Architect", action: "Drafted Executive Summary for Acme Corp", time: "3 hours ago", color: "bg-violet-500/10 text-violet-500" },
+                    { agent: "The Quant", action: "Filled Security Questionnaire", time: "2m ago", color: "bg-amber-500/10 text-amber-500" },
+                    { agent: "The Historian", action: "Ingested 4 case studies", time: "15m ago", color: "bg-cyan-500/10 text-cyan-500" },
+                    { agent: "The Gatekeeper", action: "Flagged budget discrepancy", time: "1h ago", color: "bg-rose-500/10 text-rose-500" },
+                    { agent: "The Architect", action: "Drafting: Exec Summary", time: "2h ago", color: "bg-violet-500/10 text-violet-500" },
+                    { agent: "The Architect", action: "Completed: Cover Letter", time: "3h ago", color: "bg-violet-500/10 text-violet-500" },
                 ].map((item, i) => (
-                    <div key={i} className="flex items-start justify-between p-4 hover:bg-zinc-800/30 transition-colors">
-                        <div className="flex items-start gap-3">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold ${item.color} shrink-0 ring-1 ring-inset ring-white/10`}>
-                              {item.agent.split(' ')[1].substring(0,2).toUpperCase()}
-                            </div>
-                            <div>
-                                <span className="font-medium text-zinc-200 block text-sm">{item.agent}</span>
-                                <span className="text-zinc-500 text-sm">{item.action}</span>
-                            </div>
+                    <div key={i} className="flex items-start gap-3 p-4 hover:bg-zinc-800/30 transition-colors">
+                        <div className={`mt-0.5 w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold ${item.color} shrink-0 ring-1 ring-inset ring-white/5`}>
+                          {item.agent.split(' ')[1].substring(0,1)}
                         </div>
-                        <span className="text-zinc-600 text-xs whitespace-nowrap ml-4">{item.time}</span>
+                        <div className="min-w-0 flex-1">
+                            <div className="flex justify-between items-start">
+                               <span className="font-medium text-zinc-300 text-xs">{item.agent}</span>
+                               <span className="text-zinc-600 text-[10px] whitespace-nowrap">{item.time}</span>
+                            </div>
+                            <p className="text-zinc-500 text-xs mt-0.5 truncate">{item.action}</p>
+                        </div>
                     </div>
                 ))}
             </div>
-            <div className="p-4 bg-zinc-900/50 rounded-b-xl text-center border-t border-zinc-800">
-               <span className="text-xs text-zinc-500 cursor-pointer hover:text-white font-medium transition-colors">Show older activities</span>
+            <div className="p-3 bg-zinc-900/30 text-center border-t border-zinc-800">
+               <button className="text-xs text-zinc-500 hover:text-indigo-400 transition-colors">View System Logs</button>
             </div>
-          </Card>
-        </div>
-        
-        <div className="lg:col-span-1">
-          <Card className="p-8 flex flex-col items-center justify-center text-center bg-zinc-900/30 border-dashed border-2 border-zinc-800 h-full min-h-[300px] hover:border-zinc-700 transition-colors group cursor-pointer">
-              <div className="bg-zinc-800 p-4 rounded-full mb-6 ring-8 ring-zinc-800/50 group-hover:scale-110 transition-transform duration-500">
-                <UploadCloud size={40} className="text-zinc-100" />
-              </div>
-              <h3 className="font-bold text-zinc-100 text-lg">Zero-Touch Ingestion</h3>
-              <p className="text-zinc-500 text-sm mt-3 mb-8 leading-relaxed max-w-[250px]">
-                Drag & Drop Zip files, or connect Google Drive. 
-                The Historian will index everything automatically.
-              </p>
-              <Button variant="secondary" className="w-full">Connect Data Source</Button>
           </Card>
         </div>
       </div>
@@ -281,6 +413,12 @@ We will deploy a microservices architecture on AWS, utilizing Kubernetes for orc
     </div>
   );
 
+  // Conditional Rendering for Landing Page
+  if (!isAuthenticated) {
+     return <LandingPage onLoginSuccess={() => setIsAuthenticated(true)} />;
+  }
+
+  // Dashboard Layout (Authenticated)
   return (
     <div className="flex h-screen bg-zinc-950 font-sans overflow-hidden text-zinc-200 selection:bg-indigo-500/30">
       <Sidebar 
@@ -302,7 +440,24 @@ We will deploy a microservices architecture on AWS, utilizing Kubernetes for orc
           </button>
         </div>
 
-        <div className="flex-1 overflow-auto scrollbar-hide">
+        {/* User Profile Bar (Top Right) */}
+        <div className="hidden lg:flex absolute top-4 right-8 z-50">
+           <div className="flex items-center gap-3 bg-zinc-900/50 border border-zinc-800 rounded-full px-4 py-2 hover:bg-zinc-900 transition-colors cursor-pointer group backdrop-blur-md">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center text-white text-xs font-bold">
+                 BP
+              </div>
+              <div className="text-sm font-medium text-zinc-300 group-hover:text-white">Admin User</div>
+              <button 
+                onClick={() => setIsAuthenticated(false)}
+                className="ml-2 text-zinc-500 hover:text-red-400 transition-colors" 
+                title="Logout"
+              >
+                 <LogOut size={14} />
+              </button>
+           </div>
+        </div>
+
+        <div className="flex-1 overflow-auto scrollbar-hide pt-16 lg:pt-0">
           {view === 'dashboard' && renderDashboard()}
           
           {view === 'analysis' && (
