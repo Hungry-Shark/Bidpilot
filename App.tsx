@@ -180,7 +180,7 @@ const AppContent = () => {
   ];
 
   const renderDashboard = () => (
-    <div key="dashboard" className="p-4 md:p-8 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700 pb-20 space-y-8">
+    <div key="dashboard" className="p-4 md:p-8 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700 pb-20 space-y-8">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
             <h1 className="text-3xl font-bold text-zinc-100 tracking-tight">Mission Control</h1>
@@ -430,7 +430,8 @@ const AppContent = () => {
       <TutorialOverlay isOpen={showTutorial} onClose={handleCloseTutorial} steps={TUTORIAL_STEPS} />
       <Sidebar currentView={view} onNavigate={setView} isMobileOpen={isMobileOpen} setIsMobileOpen={setIsMobileOpen} />
       
-      <main className="flex-1 flex flex-col overflow-hidden relative w-full">
+      {/* Added lg:ml-64 to compensate for the fixed sidebar */}
+      <main className="flex-1 flex flex-col overflow-hidden relative w-full lg:ml-64 transition-all duration-300">
         <header className="hidden lg:flex items-center justify-between h-16 px-8 border-b border-zinc-800 bg-zinc-950 shrink-0 z-20">
             <div className="flex items-center text-sm text-zinc-500 gap-2">
                 <span className="font-semibold text-zinc-200">BidPilot</span> 
